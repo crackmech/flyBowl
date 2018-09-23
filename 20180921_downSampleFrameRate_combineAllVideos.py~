@@ -108,7 +108,6 @@ for _,rawDir in enumerate(rawdirs):
         print('Started processing %s at %s----------------------'%(d, present_time()))
         writeFrames(d, vidExt, imExt, downSampleSize)
 
-cmd = 'avconv -i %d.png -an -vcodec rawvideo -r 100 -y ../temp.avi'
 
 
 #flist = getFiles(baseDir, vidExt)

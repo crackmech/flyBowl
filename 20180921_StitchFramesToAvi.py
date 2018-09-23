@@ -4,6 +4,9 @@
 Created on Fri Sep 21 16:53:01 2018
 
 @author: pointgrey
+taking cues from
+http://zulko.github.io/blog/2013/09/27/read-and-write-video-frames-in-python-using-ffmpeg/
+
 """
 
 import cv2
@@ -15,13 +18,12 @@ from datetime import datetime
 import Tkinter as tk
 import tkFileDialog as tkd
 import time
-import shutil
+import subprocess as sp
+
 
 baseDir = '/media/pointgrey/data/test/'
 downSampleSize = 4
  
-def move(src, dest):
-    shutil.move(src, dest)
 
 def natural_sort(l): 
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
@@ -41,10 +43,14 @@ def getFolder(initialDir):
     root.destroy()
     return initialDir+'/'
 
+def getDirList(parentDir):
+    return natural_sort([ os.path.join(parentDir, name) for name in os.listdir(parentDir)\
+                        if os.path.isdir(os.path.join(parentDir, name)) ])
+
 def getFiles(dirname, extList):
     filesList = []
     for ext in extList:
-        filesList.extend(glob.glob(os.path.join(dirname, ext)))
+        filesList.extend(glob.glob(os.path.join(dirname, '*'+ext)))
     return natural_sort(filesList)
 
 def readImStack(flist):
@@ -58,38 +64,66 @@ def readImStack(flist):
     return imStack
 
 
+initDir = '/media/aman/Hungry_mate/13_September_2018_frames/'
 
-vidExt = '11.avi'
-imExt = ['*.png']
-baseDir = getFolder('/media/pointgrey/')
-flist = getFiles(baseDir, imExt)
-
+vidExt = '.avi'
+imExt = '.png'
+baseDir = getFolder(initDir)
 outFile = baseDir.rstrip('/')+vidExt
 
-fourcc = cv2.cv.CV_FOURCC(*'DIB ')
-img = cv2.imread(flist[0])
-imSize = img.shape[1], img.shape[0]
-out = cv2.VideoWriter(outFile, fourcc, 40.0/downSampleSize, imSize)
+vidFName = '..\temp.avi'
+print('Started stitching frames to AVI on %s'%present_time())
+rawdirs = getDirList(baseDir)
+for _,rawDir in enumerate(rawdirs):
+    rawDirs = getDirList(rawDir)
+    for _,d in enumerate(rawDirs):
+        vidFName = d+vidExt
+        start = time.time()
+        imgStack = readImStack(getFiles(d,[imExt]))
+        ##http://zulko.github.io/blog/2013/09/27/read-and-write-video-frames-in-python-using-ffmpeg/        
+        command = [ 'ffmpeg',
+                '-f', 'rawvideo',
+                '-vcodec','rawvideo',
+                '-s', '1024x1024', # size of one frame
+                '-pix_fmt', 'gray',
+                '-i', 'pipe:0', # The imput comes from a pipe
+                '-an', # Tells FFMPEG not to expect any audio
+                '-vcodec', 'rawvideo',
+                '-y',
+                vidFName ]
+        pipe = sp.Popen( command, stdin=sp.PIPE, stderr=sp.PIPE)
+        pipe.communicate(input=imgStack.tostring() )
+        print('\n------%s Seconds taken to convert\n ==>%s'%(time.time()-start, vidFName))
+        
+#baseDir = getFolder(initDir)
+#outFile = baseDir.rstrip('/')+vidExt
+#
+#vidFName = '..\temp.avi'
+#
+#print('Started stitching frames to AVI on %s'%present_time())
+#rawdirs = getDirList(baseDir)
+#for _,rawDir in enumerate(rawdirs):
+#    rawDirs = getDirList(rawDir)
+#    start = time.time()
+#    for _,d in enumerate(rawDirs):
+#        vidFName = d+vidExt
+#        cmdline = ['ffmpeg',
+#                   '-i',
+#                   d+'/%d'+imExt,
+#                   '-an',
+#                   '-vcodec',
+#                   'rawvideo',
+#                   '-y',
+#                   vidFName]
+#        sp.call(cmdline,\
+#                        stdin=open(os.devnull, 'wb'),\
+#                        stdout=open(os.devnull, 'wb'),\
+#                        stderr=open(os.devnull, 'wb')\
+#                        )
+#        print('%s Seconds taken to convert %s'%(time.time()-start, vidFName))
 
-for _, f in enumerate(flist):
-    img = cv2.imread(f)
-    out.write(img)
-out.release()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#
 
 
 

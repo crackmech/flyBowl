@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Fri Sep 21 12:04:24 2018
+Created on Sun Sep 23 07:03:12 2018
 
-@author: pointgrey
-
-1) Select the folder with all AVI files to be combined
-2) Set the DownSampling Rate (the fraction of the original FPS)
-3) The output file is stored by the foldername_FPS.avi
+@author: aman
 """
 
 import cv2
@@ -19,14 +15,11 @@ from datetime import datetime
 import Tkinter as tk
 import tkFileDialog as tkd
 import time
-import shutil
+import subprocess as sp
 
 baseDir = '/media/pointgrey/data/test/'
 downSampleSize = 4
  
-def move(src, dest):
-    shutil.move(src, dest)
-
 def natural_sort(l): 
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
@@ -52,7 +45,7 @@ def getDirList(parentDir):
 def getFiles(dirname, extList):
     filesList = []
     for ext in extList:
-        filesList.extend(glob.glob(os.path.join(dirname, ext)))
+        filesList.extend(glob.glob(os.path.join(dirname, '*'+ext)))
     return natural_sort(filesList)
 
 def getFramesFomVid(vidName):
@@ -74,115 +67,50 @@ def getFramesFomVid(vidName):
         imgStack[idx]=img
     return imgStack
 
-def writeFrames(inDir, vidExt, imExt, downSampleSize):
+def getFrameStack(inDir, vidExt, downSampleSize):
     '''
     '''
     flist = getFiles(inDir, vidExt)
     if flist[0].split('/')[-1]!='.':
-        outDir = inDir.rstrip('/')+'_frames_'+str(downSampleSize)+'X-downSampledFPS/'
-        try:
-            os.mkdir(outDir)
-        except:
-            pass
-        imCount = 0
+        images = []
         for i, vid in enumerate(flist):
             start = time.time()
-            for j, img in enumerate(getFramesFomVid(vid)[::downSampleSize].copy()):
-                cv2.imwrite(os.path.join(outDir, str(imCount)+imExt), img)
-                imCount+=1
+            images.append(getFramesFomVid(vid)[::downSampleSize].copy())
             print("Extraced %d frames in %.05s Seconds from video #%d (%s) "\
-                    %(j,time.time()-start, i+1, vid.split('/')[-1]))
+                    %(len(images[i]),time.time()-start, i+1, vid.split('/')[-1]))
+        return np.vstack(images)
     else:
         print('No videos present in %s'%inDir)
+        return []
 
 
 dirName = '/media/aman/Hungry_mate/13_September_2018/'
-vidExt = ['*.avi']
-imExt = '.png'
+#dirName = '/media/aman/data/Dhananjay/FlyBowl/flyCourtship/test/'
+vidExt = ['.avi']
+
 baseDir = getFolder(dirName)
 rawdirs = getDirList(baseDir)
 
 for _,rawDir in enumerate(rawdirs):
     rawDirs = getDirList(rawDir)
     for _,d in enumerate(rawDirs):
+        start = time.time()
         print('Started processing %s at %s----------------------'%(d, present_time()))
-        writeFrames(d, vidExt, imExt, downSampleSize)
-
-cmd = 'avconv -i %d.png -an -vcodec rawvideo -r 100 -y ../temp.avi'
-
-
-#flist = getFiles(baseDir, vidExt)
-#outDir = baseDir.rstrip('/')+'_frames_'+str(downSampleSize)+'X-downSampledFPS/'
-#try:
-#    os.mkdir(outDir)
-#except:
-#    pass
-#imCount = 0
-#for i, vid in enumerate(flist):
-#    start = time.time()
-#    for j, img in enumerate(getFramesFomVid(vid)[::downSampleSize].copy()):
-#        cv2.imwrite(os.path.join(outDir, str(imCount)+imExt), img)
-#        imCount+=1
-#    print("aviRead time for %d frames: %s Seconds in %d vid"%(j,time.time()-start, i+1 ))
-
-
-
-#frames = []
-#for i, vid in enumerate(flist[:26]):
-#    start = time.time()
-#    frames.append(getFramesFomVid(vid)[::downSampleSize].copy())
-#    print("aviRead time for %d frames: %s Seconds in %d vid"%(len(frames[-1]),time.time()-start, i+1 ))
-#
-#
-#
-#
-#
-#
-#frames1 = np.vstack(frames)
-#for _,img in enumerate(frames1):
-#    cv2.imshow('frame',img)
-#    if cv2.waitKey(1) & 0xFF == ord('q'):
-#        break
-#cv2.destroyAllWindows()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        imgStack = getFrameStack(d, vidExt, downSampleSize)
+        vidFName = d+'_'+str(downSampleSize)+'X-downSampledFrames'+vidExt[0]
+        command = [ 'ffmpeg',
+                '-f', 'rawvideo',
+                '-vcodec','rawvideo',
+                '-s', '1024x1024', # size of one frame
+                '-pix_fmt', 'gray',
+                '-i', 'pipe:0', # The imput comes from a pipe
+                '-an', # Tells FFMPEG not to expect any audio
+                '-vcodec', 'rawvideo',
+                '-y',
+                vidFName ]
+        pipe = sp.Popen( command, stdin=sp.PIPE, stderr=sp.PIPE)
+        pipe.communicate(input=imgStack.tostring() )
+        print('\n------%s Seconds taken to downSample frames to\n ==>%s'%(time.time()-start, vidFName))
 
 
 

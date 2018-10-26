@@ -73,7 +73,7 @@ def getFrameStack(inDir, vidExt, downSampleSize):
     flist = getFiles(inDir, vidExt)
     if flist[0].split('/')[-1]!='.':
         images = []
-        for i, vid in enumerate(flist):
+        for i, vid in enumerate(flist[:10]):
             start = time.time()
             images.append(getFramesFomVid(vid)[::downSampleSize].copy())
             print("Extraced %d frames in %.05s Seconds from video #%d/%d (%s) "\
@@ -83,13 +83,25 @@ def getFrameStack(inDir, vidExt, downSampleSize):
         print('No videos present in %s'%inDir)
         return []
 
+def writeVidCommand(vidfname):
+    return [ 'ffmpeg',
+            '-f', 'rawvideo',
+            '-vcodec','rawvideo',
+            '-s', '1024x1024', # size of one frame
+            '-pix_fmt', 'gray',
+            '-i', 'pipe:0', # The imput comes from a pipe
+            '-an', # Tells FFMPEG not to expect any audio
+            '-vcodec', 'rawvideo',
+            '-y',
+            vidfname ]
+    
 
 dirName = '/media/aman/Hungry_mate/'
 dirName = '/media/pointgrey/Hungry_mate/'
 dirName = '/media/pointgrey/DCshared/Hungrymating/quantification_to_be_done/NoFood/'
 #dirName = '/media/aman/data/Dhananjay/FlyBowl/flyCourtship/test/'
 vidExt = ['.avi']
-
+getString = 0        # set to '0' to write line by line as string, set to '1' to write the whole imgStack in one go as a string
 baseDir = getFolder(dirName)
 rawdirs = getDirList(baseDir)
 
@@ -100,18 +112,17 @@ for _,rawDir in enumerate(rawdirs):
         print('Started processing %s at %s----------------------'%(d, present_time()))
         imgStack = getFrameStack(d, vidExt, downSampleSize)
         vidFName = d+'_'+str(downSampleSize)+'X-downSampledFrames'+vidExt[0]
-        command = [ 'ffmpeg',
-                '-f', 'rawvideo',
-                '-vcodec','rawvideo',
-                '-s', '1024x1024', # size of one frame
-                '-pix_fmt', 'gray',
-                '-i', 'pipe:0', # The imput comes from a pipe
-                '-an', # Tells FFMPEG not to expect any audio
-                '-vcodec', 'rawvideo',
-                '-y',
-                vidFName ]
-        pipe = sp.Popen( command, stdin=sp.PIPE, stderr=sp.PIPE)
-        pipe.communicate(input=imgStack.tostring() )
+        command = writeVidCommand(vidFName)
+        if getString==1:
+            imgStack = imgStack.tostring()
+            pipe = sp.Popen( command, stdin=sp.PIPE, stderr=sp.PIPE)
+            pipe.communicate(input=imgStack)
+            
+        else:
+            pipe = sp.Popen( command, stdin=sp.PIPE, stderr=sp.PIPE)
+            for i in xrange(imgStack.shape[0]):
+                print >>pipe.stdin, imgStack[i].tostring()
+        del imgStack
         print('\n------%s Seconds taken to downSample frames to\n ==>%s'%(time.time()-start, vidFName))
 
 

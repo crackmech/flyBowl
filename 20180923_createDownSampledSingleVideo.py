@@ -76,15 +76,17 @@ def getFrameStack(inDir, vidExt, downSampleSize):
         for i, vid in enumerate(flist):
             start = time.time()
             images.append(getFramesFomVid(vid)[::downSampleSize].copy())
-            print("Extraced %d frames in %.05s Seconds from video #%d (%s) "\
-                    %(len(images[i]),time.time()-start, i+1, vid.split('/')[-1]))
+            print("Extraced %d frames in %.05s Seconds from video #%d/%d (%s) "\
+                    %(len(images[i]),time.time()-start, i+1, len(flist)+1, vid.split('/')[-1]))
         return np.vstack(images)
     else:
         print('No videos present in %s'%inDir)
         return []
 
 
-dirName = '/media/aman/Hungry_mate/13_September_2018/'
+dirName = '/media/aman/Hungry_mate/'
+dirName = '/media/pointgrey/Hungry_mate/'
+dirName = '/media/pointgrey/DCshared/Hungrymating/quantification_to_be_done/NoFood/'
 #dirName = '/media/aman/data/Dhananjay/FlyBowl/flyCourtship/test/'
 vidExt = ['.avi']
 
@@ -111,19 +113,6 @@ for _,rawDir in enumerate(rawdirs):
         pipe = sp.Popen( command, stdin=sp.PIPE, stderr=sp.PIPE)
         pipe.communicate(input=imgStack.tostring() )
         print('\n------%s Seconds taken to downSample frames to\n ==>%s'%(time.time()-start, vidFName))
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

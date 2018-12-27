@@ -96,7 +96,8 @@ def writeFrames(inDir, vidExt, imExt, downSampleSize):
         print('No videos present in %s'%inDir)
 
 
-dirName = '/media/aman/Hungry_mate/13_September_2018/'
+dirName = '/media/aman/Hungry_mate/'
+dirName = '/media/pointgrey/Hungry_mate/'
 vidExt = ['*.avi']
 imExt = '.png'
 baseDir = getFolder(dirName)

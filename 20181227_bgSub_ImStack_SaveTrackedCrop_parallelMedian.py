@@ -141,6 +141,7 @@ def main():
     track_colors = [random_color() for x in xrange(1000)]
     # Infinite loop to process video frames
     fps = 0
+    stTmAv = time.time()
     stTm = time.time()
     for fr in xrange(len(flyContours[0])):
         # Capture frame-by-frame
@@ -177,25 +178,25 @@ def main():
 
         # Check for key strokes
         k = cv2.waitKey(1) & 0xff
-#        if k == 27:  # 'esc' key has been pressed, exit program.
-#            break
-#        if k == 112:  # 'p' has been pressed. this will pause/resume the code.
-#            pause = not pause
-#            if (pause is True):
-#                print("Code is paused. Press 'p' to resume..")
-#                while (pause is True):
-#                    # stay in this loop until
-#                    key = cv2.waitKey(1) & 0xff
-#                    if key == 112:
-#                        pause = False
-#                        print("Resume code..!!")
-#                        break
-#        tm = time.time()
-#        fps= (fps+(1.0/(tm-stTm)))/2
-#        print('FPS: %0.3f (frame# %d)'%(fps, fr))#(1.0/(tm-stTm)))
-#        stTm = tm
+        if k == 27:  # 'esc' key has been pressed, exit program.
+            break
+        if k == 112:  # 'p' has been pressed. this will pause/resume the code.
+            pause = not pause
+            if (pause is True):
+                print("Code is paused. Press 'p' to resume..")
+                while (pause is True):
+                    # stay in this loop until
+                    key = cv2.waitKey(1) & 0xff
+                    if key == 112:
+                        pause = False
+                        print("Resume code..!!")
+                        break
+        tm = time.time()
+        fps= (fps+(1.0/(tm-stTm)))/2
+        print('FPS: %0.3f (frame# %d)'%(fps, fr))#(1.0/(tm-stTm)))
+        stTm = tm
     cv2.destroyAllWindows()
-    print('Tracking average FPS: %0.3f'%(float(fr)/(time.time()-stTm)))#(1.0/(tm-stTm)))
+    print('Tracking average FPS: %0.3f'%(float(fr)/(time.time()-stTmAv)))#(1.0/(tm-stTm)))
 
 
 

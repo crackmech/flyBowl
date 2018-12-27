@@ -58,15 +58,15 @@ def readImStack(flist):
     '''
     returns a numpy array of all the images with extension 'imExt' in folder "imFolder"
     '''
-    img = cv2.imread(flist[0], cv2.IMREAD_GRAYSCALE)
-    imStack = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype=np.uint8)
+    img = cv2.imread(flist[0], cv2.IMREAD_COLOR)
+    imStack = np.zeros((len(flist), img.shape[0], img.shape[1], img.shape[2]), dtype=np.uint8)
     start = time.time()
     for idx, f in enumerate(flist):
         if idx%100==0:
             t = time.time()-start
             sys.stdout.write("\rRead %s frames at: %s, in %.03f seconds (%0.03f FPS)"%(idx, present_time(), t, idx/float(t)))
             sys.stdout.flush()
-        imStack[idx] = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
+        imStack[idx] = cv2.imread(f, cv2.IMREAD_COLOR)
     return imStack
 
 initDir = '/media/aman/data/flyBowl/'
@@ -85,7 +85,7 @@ for _,rawDir in enumerate(rawdirs):
         vidFName = d+vidExt
         start = time.time()
         imgStack = readImStack(getFiles(d,[imExt]))
-        nImgs, imgWidth, imgHeight = imgStack.shape
+        nImgs, imgWidth, imgHeight,_ = imgStack.shape
         imgStack = imgStack.tostring()
         print('\rRead Images, now stitching')
         ##http://zulko.github.io/blog/2013/09/27/read-and-write-video-frames-in-python-using-ffmpeg/        
@@ -93,7 +93,7 @@ for _,rawDir in enumerate(rawdirs):
                 '-f', 'rawvideo',
                 '-vcodec','rawvideo',
                 '-s', str(imgHeight)+'x'+str(imgWidth), # size of one frame
-                '-pix_fmt', 'gray',
+                '-pix_fmt', 'rgb24',#'grey'
                 '-i', 'pipe:0', # The imput comes from a pipe
                 '-an', # Tells FFMPEG not to expect any audio
                 '-vcodec', 'rawvideo',

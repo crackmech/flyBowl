@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Sun Sep 23 07:03:12 2018
+Created on Fri Sep 28 00:18:51 2018
 
 @author: aman
 """
@@ -84,8 +84,7 @@ def getFrameStack(inDir, vidExt, downSampleSize):
         return []
 
 
-dirName = '/media/aman/Hungry_mate/'
-#dirName = '/media/aman/data/Dhananjay/FlyBowl/flyCourtship/test/'
+dirName = '/media/aman/Hungry_mate/13_September_2018/'
 vidExt = ['.avi']
 
 baseDir = getFolder(dirName)
@@ -97,7 +96,7 @@ for _,rawDir in enumerate(rawdirs):
         start = time.time()
         print('Started processing %s at %s----------------------'%(d, present_time()))
         imgStack = getFrameStack(d, vidExt, downSampleSize)
-        vidFName = d+'_'+str(downSampleSize)+'X-downSampledFPS'+vidExt[0]
+        vidFName = d+'_'+str(downSampleSize)+'X-downSampledFrames'+vidExt[0]
         command = [ 'ffmpeg',
                 '-f', 'rawvideo',
                 '-vcodec','rawvideo',

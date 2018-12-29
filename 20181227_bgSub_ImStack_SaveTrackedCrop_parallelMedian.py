@@ -17,6 +17,8 @@ import time
 import glob
 import random
 import itertools
+import imageio
+from thread import start_new_thread as startNT
 
 
 nImThreshold = 0# if number of images in a folder is less than this, then the folder is not processed
@@ -103,7 +105,7 @@ def getImstkBgIm(dirname, imExts, imNThresh, pool, workers):
     t1 = time.time()-startTime
     print("imRead time for %d frames: %0.2f Seconds at %0.2f FPS"%(len(flist),t1 ,len(flist)/float(t1)))
     t1 = time.time()
-    imStackChunks = np.array_split(imgStack[5:1000], 4*workers, axis=1)
+    imStackChunks = np.array_split(imgStack[int(len(imgStack)*0.05):int(len(imgStack)*0.5)], 4*workers, axis=1)
     bgImChunks = pool.map(getBgIm, imStackChunks)
     bgIm = np.array(np.vstack((bgImChunks)), dtype=np.uint8)
     t2 = time.time()-t1
@@ -115,33 +117,43 @@ def getImstkBgIm(dirname, imExts, imNThresh, pool, workers):
 
 from detectors import Detectors
 from tracker import Tracker
-def main():
+"""Initialize variable used by Tracker class
+Args:
+    dist_thresh: distance threshold. When exceeds the threshold,
+                 track will be deleted and new track is created
+    max_frames_to_skip: maximum allowed frames to be skipped for
+                        the track object undetected
+    max_trace_length: trace path history length
+    trackIdCount: identification of each track object
+Return:
+    None
+"""
+import tifffile
+outFName = '/media/aman/data/KCNJ10/KCNJ10_labeledVideos/fullRes/20180927_213843_20180924_0130_W1118-flyBowl/imageData/temp.tif'
+memmap_image = tifffile.memmap(outFName, shape=(256, 256), dtype='float32')
+memmap_image[255, 255] = 1.0
+memmap_image.flush()
+
+def main(tiffStep):
     """Main function for multi object tracking
     """
+    #tiffStep = 512
 
     # Create Object Detector
     detector = Detectors()
 
     # Create Object Tracker
-    """Initialize variable used by Tracker class
-    Args:
-        dist_thresh: distance threshold. When exceeds the threshold,
-                     track will be deleted and new track is created
-        max_frames_to_skip: maximum allowed frames to be skipped for
-                            the track object undetected
-        max_trace_length: trace path history length
-        trackIdCount: identification of each track object
-    Return:
-        None
-    """
     tracker = Tracker(200, 50, 25, 100)
     
     # Variables initialization
     pause = False
-    track_colors = [random_color() for x in xrange(1000)]
+    track_colors = [random_color() for x in xrange(256)]
     # Infinite loop to process video frames
-    fps = 0
     stTmAv = time.time()
+    outFName = imFolder+'_traced_0-'+str(tiffStep) +'.tiff'
+    #memmap_image = tifffile.memmap(outFName, shape=(tiffStep, newx, newy, 3), dtype='uint8')
+    imgs = np.zeros((tiffStep, newx, newy, 3), dtype = np.uint8)
+    tTm = 0
     stTm = time.time()
     for fr in xrange(len(flyContours[0])):
         # Capture frame-by-frame
@@ -168,36 +180,71 @@ def main():
                         x2 = tracker.tracks[i].trace[j+1][0][0]
                         y2 = tracker.tracks[i].trace[j+1][1][0]
                         clr = tracker.tracks[i].track_id
-#                        cv2.line(outFrame, (int(x1), int(y1)), (int(x2), int(y2)),
-#                                 track_colors[clr], 2)
-#                        cv2.circle(outFrame, (int(x1), int(y1)), 5, (255,25,255), 2)
-                    cv2.circle(outFrame, (int(x2), int(y2)), 5, track_colors[clr], 5)
+                        
+                        cv2.line(outFrame, (int(x1), int(y1)), (int(x2), int(y2)),
+                                 track_colors[clr], 2)
+                        cv2.circle(outFrame, (int(x2), int(y2)), 2, track_colors[clr], 2)
+                        #cv2.circle(outFrame, (int(x1), int(y1)), 2, (255,25,255), 2)
+                    cv2.circle(outFrame, (int(x2), int(y2)), 2, track_colors[clr], 1)
 
             # Display the resulting tracking frame
-            cv2.imshow('Tracking', outFrame)
-
-        # Check for key strokes
-        k = cv2.waitKey(1) & 0xff
-        if k == 27:  # 'esc' key has been pressed, exit program.
-            break
-        if k == 112:  # 'p' has been pressed. this will pause/resume the code.
-            pause = not pause
-            if (pause is True):
-                print("Code is paused. Press 'p' to resume..")
-                while (pause is True):
-                    # stay in this loop until
-                    key = cv2.waitKey(1) & 0xff
-                    if key == 112:
-                        pause = False
-                        print("Resume code..!!")
-                        break
-        tm = time.time()
-        fps= (fps+(1.0/(tm-stTm)))/2
-        print('FPS: %0.3f (frame# %d)'%(fps, fr))#(1.0/(tm-stTm)))
-        stTm = tm
-    cv2.destroyAllWindows()
+            #cv2.imshow('Tracking', outFrame)
+            #outFName = imFolder+'_traced/'+flist[fr].split('/')[-1]
+            #cv2.imwrite(outFName, outFrame)
+            img = cv2.resize(outFrame,(newx,newy))
+            imN = (fr%tiffStep)
+            if (imN==0 and fr>0):
+                outFName = imFolder+'_traced_'+str(fr-tiffStep) + '-'+str(fr)  +'.tiff'
+                startNT(imageio.mimwrite, (outFName,imgs))
+                imgs = np.zeros((tiffStep, newx, newy, 3), dtype = np.uint8)
+                #memmap_image = tifffile.memmap(outFName, shape=(tiffStep, newx, newy, 3), dtype='uint8')
+                #memmap_image[imN] = img
+                tm = time.time()
+                fps= (tiffStep/(tm-stTm))
+                tTm += tm-stTm
+                print('FPS: %0.3f (frame# %d)'%(fps, fr))
+                stTm = tm
+            #else:
+            #    #print fr, imN
+            imgs[imN] = img
+    #imageio.mimwrite(imFolder+'_traced_'+str((fr/tiffStep)*tiffStep) + '-'+str(fr)  +'.tiff',imgs[:imN])
     print('Tracking average FPS: %0.3f'%(float(fr)/(time.time()-stTmAv)))#(1.0/(tm-stTm)))
 
+main(1024)
+#128    :  Tracking average FPS: 122.351
+#256    :  Tracking average FPS: 125.891
+#512    :  Tracking average FPS: 126.113
+#1024   :  Tracking average FPS: 125.399
+
+
+#            #cv2.imshow('BgSub', frame)
+#
+#        # Check for key strokes
+#        k = cv2.waitKey(1) & 0xff
+#        if k == 27:  # 'esc' key has been pressed, exit program.
+#            break
+#        if k == 112:  # 'p' has been pressed. this will pause/resume the code.
+#            pause = not pause
+#            if (pause is True):
+#                print("Code is paused. Press 'p' to resume..")
+#                while (pause is True):
+#                    # stay in this loop until
+#                    key = cv2.waitKey(1) & 0xff
+#                    if key == 112:
+#                        pause = False
+#                        print("Resume code..!!")
+#                        break
+#        if (imN==0 and fr>0):
+#            imageio.mimwrite(imFolder+'_traced_'+str(fr-tiffStep) + '-'+str(fr)  +'.tiff',imgs)
+#            imgs = np.zeros((tiffStep, newx, newy, 3), dtype = np.uint8)
+#            tm = time.time()
+#            fps= (fps+(tiffStep/(tm-stTm)))/(2)
+#            print('FPS: %0.3f (frame# %d)'%(fps, fr))#(1.0/(tm-stTm)))
+#            stTm = tm
+#    cv2.destroyAllWindows()
+#    print('Tracking average FPS: %0.3f'%(float(fr)/(time.time()-stTmAv)))#(1.0/(tm-stTm)))
+
+#main()
 
 
 
@@ -210,8 +257,15 @@ imNThresh = 4096
 nThreads = 8
 pool = mp.Pool(processes=nThreads)
 
-imFolder = '/media/aman/data/KCNJ10/KCNJ10_labeledVideos/fullRes/20180927_000154_20180922_2230_KCNJ10SS--flyBowl/imageData/20180927_000433'
 
+baseDir = '/media/aman/data/KCNJ10/KCNJ10_labeledVideos/fullRes/'
+imFolder = baseDir + '20180927_000154_20180922_2230_KCNJ10SS--flyBowl/imageData/20180927_000433'
+#imFolder = baseDir + '20180927_213843_20180924_0130_W1118-flyBowl/imageData/20180927_213857'
+
+flist = getFiles(imFolder, imExtensions)
+imData = imRead(flist[0])
+scaleFactor = 0.5
+newx,newy = int(imData.shape[1]*scaleFactor), int(imData.shape[0]*scaleFactor) #new size (w,h)
 
 flyContours = getImstkBgIm(imFolder, imExtensions, imNThresh, pool, nThreads)
 pool.close()
@@ -219,11 +273,54 @@ cv2.imshow('123', flyContours[1])
 cv2.waitKey()
 cv2.destroyAllWindows()
 
-main()
+
+main(128)
 
 """FIX TRACKS WITH NO FLIES BY CROSS CORRELATING FLY CENTROIND DETECTION WITH TRACKING DATA"""
 
+
+
+
+
+
+
+##https://www.lfd.uci.edu/~gohlke/code/tifffile.py.html#
+#fName = '/media/aman/data/KCNJ10/KCNJ10_labeledVideos/fullRes/20180927_213843_20180924_0130_W1118-flyBowl/imageData/20180927_213857_1000-1099.tif'
+#tifName = '/media/aman/data/KCNJ10/KCNJ10_labeledVideos/fullRes/20180927_213843_20180924_0130_W1118-flyBowl/imageData/20180927_213857_1000-1099.tif_123.tiff'
+#import tifffile
 #
-#im = np.vstack(flyContours)
+#with tifffile.TiffFile(fName) as tif:
+#    images = tif.asarray()
+#    for page in tif.pages:
+#        for tag in page.tags.values():
+#            print tag.name, tag.value
+#        print "====="
+#        image = page.asarray()
 #
+#tifs = tifffile.TiffFile(fName)
+#
+#
+#with tifffile.TiffFile(tifName) as tif:
+#    images = tif.asarray()
+#    for page in tif.pages:
+#        for tag in page.tags.values():
+#            print tag.name, tag.value
+#        print "====="
+#        image = page.asarray()
+#
+##https://stackoverflow.com/questions/20529187/what-is-the-best-way-to-save-image-metadata-alongside-a-tif-with-python
+#frames = tifffile.TiffFile(tifName)
+#frames.imagej_metadata
+#
+
+#Create an empty TIFF file and write to the memory-mapped numpy array:
+#
+#import tifffile
+#outFName = '/media/aman/data/KCNJ10/KCNJ10_labeledVideos/fullRes/20180927_213843_20180924_0130_W1118-flyBowl/imageData/temp.tif'
+#memmap_image = tifffile.memmap(outFName, shape=(256, 256), dtype='float32')
+#memmap_image[255, 255] = 1.0
+#memmap_image.flush()
+#memmap_image.shape, memmap_image.dtype
+
+
 

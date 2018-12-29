@@ -146,7 +146,7 @@ class Detectors(object):
                 centeroid = (int(x), int(y))
                 radius = int(radius)
                 if (blob_radius_thresh_min< radius < blob_radius_thresh_max):
-                    cv2.circle(frame, centeroid, radius, (0, 255, 0), 2)
+                    #cv2.circle(frame, centeroid, radius, (0, 255, 0), 2)
                     b = np.array([[x], [y]])
                     centers.append(np.round(b))
             except ZeroDivisionError:
